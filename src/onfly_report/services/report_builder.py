@@ -49,8 +49,7 @@ class ReportBuilder:
             status_counts[reservation.status] = status_counts.get(reservation.status, 0) + 1
 
             confirmed.append(reservation) if is_billable(reservation.status) else None
-        #confirmed = [row for row in reservations if is_billable(row.status)]
-
+        
         data_by_month: dict[str, dict] = defaultdict(
             lambda: {"reservations": 0, "room_nights": 0, "amount": Decimal("0")}
         )

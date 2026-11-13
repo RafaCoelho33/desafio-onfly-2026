@@ -43,15 +43,18 @@ class ReportBuilder:
         rates = self._rate_repository.read()
 
         status_counts = {"CONFIRMED": 0, "CANCELLED": 0, "NO_SHOW": 0}
+        confirmed = []
+
         for reservation in reservations:
             status_counts[reservation.status] = status_counts.get(reservation.status, 0) + 1
 
-        confirmed = [row for row in reservations if is_billable(row.status)]
+            confirmed.append(reservation) if is_billable(reservation.status) else None
+        #confirmed = [row for row in reservations if is_billable(row.status)]
 
-        monthly: dict[str, dict] = defaultdict(
+        data_by_month: dict[str, dict] = defaultdict(
             lambda: {"reservations": 0, "room_nights": 0, "amount": Decimal("0")}
         )
-        hotels: dict[str, dict] = defaultdict(
+        data_by_hotel: dict[str, dict] = defaultdict(
             lambda: {"hotel_name": "", "room_nights": 0, "amount": Decimal("0")}
         )
 
@@ -66,13 +69,13 @@ class ReportBuilder:
             total_amount += amount_brl
 
             month_key = row.checkin.strftime("%Y-%m")
-            monthly[month_key]["reservations"] += 1
-            monthly[month_key]["room_nights"] += room_nights
-            monthly[month_key]["amount"] += amount_brl
+            data_by_month[month_key]["reservations"] += 1
+            data_by_month[month_key]["room_nights"] += room_nights
+            data_by_month[month_key]["amount"] += amount_brl
 
-            hotels[row.hotel_id]["hotel_name"] = row.hotel_name
-            hotels[row.hotel_id]["room_nights"] += room_nights
-            hotels[row.hotel_id]["amount"] += amount_brl
+            data_by_hotel[row.hotel_id]["hotel_name"] = row.hotel_name
+            data_by_hotel[row.hotel_id]["room_nights"] += room_nights
+            data_by_hotel[row.hotel_id]["amount"] += amount_brl
 
         average_nightly_rate = (
             total_amount / Decimal(total_nights) if total_nights > 0 else Decimal("0")
@@ -85,10 +88,10 @@ class ReportBuilder:
                 "room_nights": data["room_nights"],
                 "total_brl": format_money(data["amount"]),
             }
-            for month, data in sorted(monthly.items())
+            for month, data in sorted(data_by_month.items())
         ]
 
-        ranked_hotels = sorted(hotels.items(), key=lambda item: (item[1]["amount"], item[0]))
+        ranked_hotels = sorted(data_by_hotel.items(), key=lambda item: (-item[1]["amount"], item[0]))
         top_hotels = [
             {
                 "hotel_id": hotel_id,
